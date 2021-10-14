@@ -56,7 +56,6 @@ queue *queue_empty(free_function free_func)
 	// Create an empty list.
 	q->elements=list_empty(free_func);
 
-
 	return q;
 }
 
@@ -102,7 +101,6 @@ bool queue_is_done(const queue *q, sem_t *semaphore, int number_of_threads)
 	pthread_mutex_unlock(&mutex);
 
 	return false;
-	
 }
 
 
@@ -119,7 +117,6 @@ void queue_enqueue(queue *q, void *v)
 
 	//insert to queue
 	list_insert(q->elements, v, list_end(q->elements));
-
 
 	//send signal 
 	pthread_cond_signal(&condition);
@@ -140,10 +137,13 @@ char *queue_dequeue(queue *q)
 	
 	//lock mutex
 	pthread_mutex_lock(&mutex);
+
 	char *file = NULL;
-	if(!list_is_empty(q->elements)) {
+	if(!list_is_empty(q->elements)) 
+	{
 		//get the element from the queue.
 		file =list_inspect(q->elements, list_first(q->elements));
+
 		//remove from queue.
 		list_remove(q->elements, list_first(q->elements));
 	}

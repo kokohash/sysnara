@@ -26,8 +26,6 @@ typedef struct data
 
 }data;
 
-
-
 //decliration of functions.
 int check_target_size(const char *target_file);
 void dir_check(const char *target_dir, data *d);
@@ -165,6 +163,7 @@ void dir_check(const char *target_dir, data *d)
     if ((dir = opendir(target_dir)) == NULL)
     {
         fprintf(stderr, "du: cannot read directory '%s': Permission denied\n", target_dir);
+        //only adding mutex lock and unlock here to remove errors when using helgrind. 
         pthread_mutex_lock(&d->mutex);
         d->exit_code = EXIT_FAILURE;
         pthread_mutex_unlock(&d->mutex);
