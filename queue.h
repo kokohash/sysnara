@@ -1,7 +1,9 @@
 #ifndef __QUEUE_H
 #define __QUEUE_H
 
+#include <semaphore.h>
 #include <stdbool.h>
+
 #include "util.h"
 
 /*
@@ -45,7 +47,8 @@ queue *queue_empty(free_function free_func);
  *
  * Returns: True if queue is empty, otherwise false.
  */
-bool queue_is_empty(const queue *q);
+bool queue_is_done(const queue *q, sem_t *semaphore, int number_of_threads);
+
 
 /**
  * queue_enqueue() - Put a value at the end of the queue.
@@ -64,16 +67,7 @@ queue *queue_enqueue(queue *q, void *v);
  *
  * Returns: The modified queue.
  */
-queue *queue_dequeue(queue *q);
-
-/**
- * queue_front() - Inspect the value at the front of the queue.
- * @q: Queue to inspect.
- *
- * Returns: The value at the top of the queue.
- *	    NOTE: The return value is undefined for an empty queue.
- */
-void *queue_front(const queue *q);
+char *queue_dequeue(queue *q);
 
 /**
  * queue_kill() - Destroy a given queue.
@@ -86,17 +80,5 @@ void *queue_front(const queue *q);
  * Returns: Nothing.
  */
 void queue_kill(queue *q);
-
-/**
- * queue_print() - Iterate over the queue elements and print their values.
- * @q: Queue to inspect.
- * @print_func: Function called for each element.
- *
- * Iterates over the queue and calls print_func with the value stored
- * in each element.
- *
- * Returns: Nothing.
- */
-void queue_print(const queue *q, inspect_callback print_func);
 
 #endif
