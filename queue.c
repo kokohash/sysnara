@@ -94,13 +94,11 @@ bool queue_is_done(const queue *q, sem_t *semaphore, int number_of_threads)
 	//loop to check that the semaphore is set and the list is empty, then set condtion wait.
 	while (semaphore_value != number_of_threads && list_is_empty(q->elements)) 
 	{
-		printf("Waiting. semval = %d,  list_empty = %s\n", semaphore_value, list_is_empty(q->elements) ? "true" : "false");
 		pthread_cond_wait(&condition, &mutex);
-		printf("Resuming\n");
+		sem_getvalue(semaphore, &semaphore_value);
 	}
 
 	//if all threads are waiting and the list is empty
-	printf("number_of_threads: %d\n", number_of_threads);
 	if (list_is_empty(q->elements) && semaphore_value == number_of_threads) 
 	{	
 		//set condition to broadcast.
@@ -157,12 +155,13 @@ char *queue_dequeue(queue *q)
 	
 	//lock mutex
 	pthread_mutex_lock(&mutex);
-
-	//get the element from the queue.
-	char *file =list_inspect(q->elements, list_first(q->elements));
-
-	//remove from queue.
-	list_remove(q->elements, list_first(q->elements));
+	char *file = NULL;
+	if(!list_is_empty(q->elements)) {
+		//get the element from the queue.
+		file =list_inspect(q->elements, list_first(q->elements));
+		//remove from queue.
+		list_remove(q->elements, list_first(q->elements));
+	}
 
 	//unlock mutex
 	pthread_mutex_unlock(&mutex);

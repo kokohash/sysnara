@@ -237,32 +237,31 @@ void *check_target(void *ptr)
     {   
         //lock 
         sem_wait(&semaphore);
-        printf("epic semlock\n");
 
         //get the target from queue.
         target = queue_dequeue(d->queue);
+        if(target != NULL) {
+            //check the target mode
+            mode_of_target = check_target_mode(target);
 
-        //check the target mode
-        mode_of_target = check_target_mode(target);
+            //if target is a file.
+            if (S_ISREG(mode_of_target))
+            {
+                *size += check_target_size(target);        
+            }
 
-        //if target is a file.
-        if (S_ISREG(mode_of_target))
-        {
-            *size += check_target_size(target);        
+            //if target is a directory or a symbolic link.
+            if (S_ISDIR(mode_of_target) || S_ISLNK(mode_of_target))
+            {
+                dir_check(target, d);
+                *size += check_target_size(target);  
+            }
+            
+            free(target);
         }
 
-        //if target is a directory or a symbolic link.
-        if (S_ISDIR(mode_of_target) || S_ISLNK(mode_of_target))
-        {
-            dir_check(target, d);
-            *size += check_target_size(target);  
-        }
-        
-        free(target);
         sem_post(&semaphore);
-        printf("epic semunlock\n");
     }
-    printf("Finished, returning\n");
     return size;
 }
 
@@ -277,7 +276,7 @@ int thread_maker(data *d)
     {   
         printf("%d\n", i);
         fflush(stdout);
-        if (pthread_create(&thread[d->number_of_threads], NULL, *check_target, d) != 0)
+        if (pthread_create(&thread[i], NULL, *check_target, d) != 0)
         {
             perror("Thread create failed!");
             exit(EXIT_FAILURE);
@@ -286,7 +285,7 @@ int thread_maker(data *d)
 
     for (int i = 0; i < d->number_of_threads; i++) 
     {
-        if (pthread_join(thread[d->number_of_threads], (void **)&size_catch) != 0)
+        if (pthread_join(thread[i], (void **)&size_catch) != 0)
         {
             perror("Thread join failed!");
             exit(EXIT_FAILURE);
