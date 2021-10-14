@@ -89,14 +89,11 @@ int main(int argc, char *argv[])
         }
     }
 
-
     char *file;
 
     //add targets to queue.
     for (int i = optind; i < argc ; i++)
     {      
-
-
         if (sem_init(&semaphore, 0, d->number_of_threads) == -1)
         {
             perror("Semaphore init failed!");
@@ -113,6 +110,7 @@ int main(int argc, char *argv[])
             int *size = check_target(d);
             fprintf(stdout, "%d      ", *size);
             fprintf(stdout, "%s\n", argv[i]);
+            free(size);
         }
         else
         {   
@@ -125,7 +123,8 @@ int main(int argc, char *argv[])
         queue_kill(d->queue);
         sem_destroy(&semaphore);
     }
-       
+
+    free(d);   
     return EXIT_SUCCESS;
 }
 
@@ -185,7 +184,6 @@ void dir_check(const char *target_dir, data *d)
     {
         fprintf(stderr, "%s: ", target_dir);
         perror("Cant open directory!");
-        
     }
     else
     {   
@@ -193,7 +191,6 @@ void dir_check(const char *target_dir, data *d)
         while ((direntp = readdir(dir)) != NULL)
         {   
             //allocate memory for file_name and add null terminator to the first bit.
-            //ändra till strdup?? och kolla malloc
             char *file_name = malloc(sizeof(*file_name)*PATH_MAX);
 
             if (file_name == NULL)
@@ -223,7 +220,7 @@ void dir_check(const char *target_dir, data *d)
 
         }
 
-       closedir(dir);
+        closedir(dir);
     }
 
 }
@@ -244,23 +241,24 @@ void *check_target(void *ptr)
 
         //get the target from queue.
         target = queue_dequeue(d->queue);
-        if(target != NULL) {
+        if(target != NULL) 
+        {
             //check the target mode
             mode_of_target = check_target_mode(target);
 
-            //if target is a file.
+            //if target is a file or a symbolic link.
             if (S_ISREG(mode_of_target) || S_ISLNK(mode_of_target))
             {
                 *size += check_target_size(target);        
             }
 
-            //if target is a directory or a symbolic link.
+            //if target is a directory .
             if (S_ISDIR(mode_of_target))
             {
                 dir_check(target, d);
                 *size += check_target_size(target);  
             }
-            
+
             free(target);
         }
 
