@@ -34,6 +34,13 @@ mode_t check_target_mode(const char *target);
 void *check_target(void *ptr);
 int thread_maker(data *d);
 
+/**
+ * @brief Main function that runs the program.
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char *argv[])
 {
     //if no arguments(files or directories) are sent.
@@ -46,6 +53,7 @@ int main(int argc, char *argv[])
     char flag; 
     data *d = malloc(sizeof(*d));
 
+    //checks if the previous malloc was successfull or not
     if (d == NULL) 
     {
         perror("Allocation failed!");
@@ -172,10 +180,10 @@ mode_t check_target_mode(const char *target)
 }
 
 /**
- * @brief Function that checks the size of target when its a directory.
+ * @brief Function that reads from dir
  * 
- * @param target_dir directory to check
- * @return size of directory as an int
+ * @param target_dir dir to open
+ * @param d data structure
  */
 void dir_check(const char *target_dir, data *d)
 {
@@ -195,7 +203,6 @@ void dir_check(const char *target_dir, data *d)
         //read all files in directory.
         while ((direntp = readdir(dir)) != NULL)
         {   
-
             //removes the "." and ".." from the directory.
             if ((strcmp(direntp->d_name, ".") == 0) || (strcmp(direntp->d_name, "..") == 0))
             {
@@ -222,16 +229,19 @@ void dir_check(const char *target_dir, data *d)
             strcat(file_name, direntp->d_name);
 
             //add target to queue.
-            
             queue_enqueue(d->queue, file_name);
-
         }
 
         closedir(dir);
     }
-
 }
 
+/**
+ * @brief Function that checks the target size.
+ * 
+ * @param ptr target to check
+ * @return void* 
+ */
 void *check_target(void *ptr)
 {   
     data *d = ptr;
@@ -274,6 +284,12 @@ void *check_target(void *ptr)
     return size;
 }
 
+/**
+ * @brief Function that creates the threads
+ * 
+ * @param d data structure
+ * @return int 
+ */
 int thread_maker(data *d)
 {
     pthread_t thread[d->number_of_threads];
@@ -281,6 +297,7 @@ int thread_maker(data *d)
     int size = 0;
     int *size_catch;
 
+    //create threads
     for (int i = 0; i < d->number_of_threads; i++) 
     {   
         if (pthread_create(&thread[i], NULL, *check_target, d) != 0)
@@ -290,6 +307,7 @@ int thread_maker(data *d)
         }
     }
 
+    //join threads
     for (int i = 0; i < d->number_of_threads; i++) 
     {
         if (pthread_join(thread[i], (void **)&size_catch) != 0)

@@ -2,21 +2,6 @@
 #include <stdlib.h>
 #include "list.h"
 
-/*
- * Implementation of a generic, undirected list for the
- * "Datastructures and algorithms" courses at the Department of
- * Computing Science, Umea University.
- *
- * Authors: Niclas Borlin (niclas@cs.umu.se)
- *	    Adam Dahlgren Lindstrom (dali@cs.umu.se)
- *	    Lars Karlsson (larsk@cs.umu.se)
- *
- * Based on earlier code by: Johan Eliasson (johane@cs.umu.se).
- *
- * Version information:
- *   2018-01-28: v1.0, first public version.
- */
-
 // ===========INTERNAL DATA TYPES============
 
 /*

@@ -4,26 +4,6 @@
 #include <stdbool.h>
 #include "util.h"
 
-/*
- * Declaration of a generic, undirected list for the "Datastructures
- * and algorithms" courses at the Department of Computing Science,
- * Umea University. The list stores void pointers, so it can be used
- * to store all types of values. After use, the function list_kill
- * must be called to de-allocate the dynamic memory used by the list
- * itself. The de-allocation of any dynamic memory allocated for the
- * element values is the responsibility of the user of the list,
- * unless a free_function is registered in list_empty.
- *
- * Authors: Niclas Borlin (niclas@cs.umu.se)
- *	    Adam Dahlgren Lindstrom (dali@cs.umu.se)
- *	    Lars Karlsson (larsk@cs.umu.se)
- *
- * Based on earlier code by: Johan Eliasson (johane@cs.umu.se).
- *
- * Version information:
- *   2018-01-28: v1.0, first public version.
- */
-
 // ==========PUBLIC DATA TYPES============
 
 // List type.

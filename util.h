@@ -1,20 +1,6 @@
 #ifndef __UTIL_H
 #define __UTIL_H
 
-/*
- * Utility function types for deallocating, printing and comparing
- * values stored by various data types.
- *
- * Authors: Niclas Borlin (niclas@cs.umu.se)
- *	    Adam Dahlgren Lindstrom (dali@cs.umu.se)
- *
- * Based on earlier code by: Johan Eliasson (johane@cs.umu.se).
- *
- * Version information:
- *   2018-01-28: v1.0, first public version.
- *   2018-02-06: v1.1, updated explanation for the compare_function.
- */
-
 // Type definition for de-allocator function, e.g. free().
 typedef void (*free_function)(void *);
 
