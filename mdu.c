@@ -1,3 +1,14 @@
+/**
+ * @file mdu.c
+ * @author Jaffar El-Tai (hed20jei)
+ * @brief Program that returns file or directory size. It can use one thread or
+ *        multiple. 
+ * @version 1
+ * @date 2021-10-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #include <linux/limits.h>
 #include <semaphore.h>
 #include <stdio.h>
@@ -223,7 +234,6 @@ void *check_target(void *ptr)
     //loop to check if the target is a file or a directory.
     while (!queue_is_done(d->queue, &d->semaphore, d->number_of_threads))
     {   
-        //lock 
         sem_wait(&d->semaphore);
 
         //get the target from queue.

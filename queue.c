@@ -1,3 +1,13 @@
+/**
+ * @file queue.c
+ * @author Jaffar El-Tai (hed20jei)
+ * @brief implimentation of queue.
+ * @version 1
+ * @date 2021-10-15
+ * 
+ * @copyright Copyright (c) 2021
+ * 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
