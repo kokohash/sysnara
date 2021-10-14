@@ -21,11 +21,12 @@ typedef struct data
     int number_of_threads;
     queue *queue;
     int exit_code;
+    pthread_mutex_t mutex;
+    sem_t semaphore;
 
 }data;
 
-sem_t semaphore;
-pthread_mutex_t mutex;
+
 
 //decliration of functions.
 int check_target_size(const char *target_file);
@@ -33,6 +34,8 @@ void dir_check(const char *target_dir, data *d);
 mode_t check_target_mode(const char *target);
 void *check_target(void *ptr);
 int thread_maker(data *d);
+void mutex_init(data *d);
+void add_target(data *d, int argc, char *argv[]);
 
 /**
  * @brief Main function that runs the program.
@@ -52,6 +55,7 @@ int main(int argc, char *argv[])
 
     char flag; 
     data *d = malloc(sizeof(*d));
+    mutex_init(d);
 
     //checks if the previous malloc was successfull or not
     if (d == NULL) 
@@ -97,43 +101,10 @@ int main(int argc, char *argv[])
         }
     }
 
-    char *file;
-
     //add targets to queue.
-    for (int i = optind; i < argc ; i++)
-    {   
-         //create empty queue
-        d->queue = queue_empty(NULL);
+    add_target(d, argc ,argv);
 
-        if (sem_init(&semaphore, 0, d->number_of_threads) == -1)
-        {
-            perror("Semaphore init failed!");
-            return EXIT_FAILURE;
-        }
-
-        //copy argv to file so each target can  be freed after being dequeued.
-        file = strdup(argv[i]);
-        queue_enqueue(d->queue, file);
-
-        if (d->number_of_threads == 1)
-        {
-            //check if target is a file or directory without threads.
-            int *size = check_target(d);
-            fprintf(stdout, "%d      ", *size);
-            fprintf(stdout, "%s\n", argv[i]);
-            free(size);
-        }
-        else
-        {   
-            //check if target is a file or directory with threads.
-            int size = thread_maker(d);
-            fprintf(stdout, "%d      ", size);
-            fprintf(stdout, "%s\n", argv[i]);
-        }
-
-        queue_kill(d->queue);
-        sem_destroy(&semaphore);
-    }
+    //return exit_code and free data structure.
     int exit_code = d->exit_code;
     free(d);   
     return exit_code;
@@ -194,9 +165,9 @@ void dir_check(const char *target_dir, data *d)
     if ((dir = opendir(target_dir)) == NULL)
     {
         fprintf(stderr, "du: cannot read directory '%s': Permission denied\n", target_dir);
-        pthread_mutex_lock(&mutex);
+        pthread_mutex_lock(&d->mutex);
         d->exit_code = EXIT_FAILURE;
-        pthread_mutex_unlock(&mutex);
+        pthread_mutex_unlock(&d->mutex);
     }
     else
     {   
@@ -251,10 +222,10 @@ void *check_target(void *ptr)
     char *target;
 
     //loop to check if the target is a file or a directory.
-    while (!queue_is_done(d->queue, &semaphore, d->number_of_threads))
+    while (!queue_is_done(d->queue, &d->semaphore, d->number_of_threads))
     {   
         //lock 
-        sem_wait(&semaphore);
+        sem_wait(&d->semaphore);
 
         //get the target from queue.
         target = queue_dequeue(d->queue);
@@ -279,7 +250,7 @@ void *check_target(void *ptr)
             free(target);
         }
 
-        sem_post(&semaphore);
+        sem_post(&d->semaphore);
     }
     return size;
 }
@@ -321,4 +292,68 @@ int thread_maker(data *d)
     }
 
     return size;
+}
+
+/**
+ * @brief Function to initilize the mutex 
+ * 
+ * @param d data structure
+ */
+void mutex_init(data *d)
+{
+    //init of mutex 
+	if (pthread_mutex_init(&d->mutex, NULL) != 0) 
+	{
+		perror("Mutex failed!");
+		exit(EXIT_FAILURE);
+	}
+}
+
+/**
+ * @brief function that adds target to queue
+ * 
+ * @param d data structure
+ * @param argc amount in arg
+ * @param argv whats in arg
+ */
+void add_target(data *d, int argc, char *argv[])
+{
+    char *file;
+
+    //add targets to queue.
+    for (int i = optind; i < argc ; i++)
+    {   
+         //create empty queue
+        d->queue = queue_empty(NULL);
+
+        if (sem_init(&d->semaphore, 0, d->number_of_threads) == -1)
+        {
+            perror("Semaphore init failed!");
+            exit(EXIT_FAILURE);
+        }
+
+        //copy argv to file so each target can  be freed after being dequeued.
+        file = strdup(argv[i]);
+        queue_enqueue(d->queue, file);
+
+        if (d->number_of_threads == 1)
+        {
+            //check if target is a file or directory without threads.
+            int *size = check_target(d);
+            fprintf(stdout, "%d      ", *size);
+            fprintf(stdout, "%s\n", argv[i]);
+            free(size);
+        }
+        else
+        {   
+            //check if target is a file or directory with threads.
+            int size = thread_maker(d);
+            fprintf(stdout, "%d      ", size);
+            fprintf(stdout, "%s\n", argv[i]);
+        }
+
+        queue_kill(d->queue);
+        sem_destroy(&d->semaphore);
+        pthread_mutex_destroy(&d->mutex);
+    }
 }
