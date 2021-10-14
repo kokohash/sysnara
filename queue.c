@@ -125,7 +125,7 @@ bool queue_is_done(const queue *q, sem_t *semaphore, int number_of_threads)
  *
  * Returns: The modified queue.
  */
-queue *queue_enqueue(queue *q, void *v)
+void queue_enqueue(queue *q, void *v)
 {	
 	//lock mutex
 	pthread_mutex_lock(&mutex);
@@ -133,13 +133,13 @@ queue *queue_enqueue(queue *q, void *v)
 	//insert to queue
 	list_insert(q->elements, v, list_end(q->elements));
 
-	//unlock mutex
-	pthread_mutex_unlock(&mutex);
 
 	//send signal 
 	pthread_cond_signal(&condition);
-	
-	return q;
+
+	//unlock mutex
+	pthread_mutex_unlock(&mutex);
+
 }
 
 /**

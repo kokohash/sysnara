@@ -20,10 +20,12 @@ typedef struct data
 {   
     int number_of_threads;
     queue *queue;
+    int exit_code;
 
 }data;
 
 sem_t semaphore;
+pthread_mutex_t mutex;
 
 //decliration of functions.
 int check_target_size(const char *target_file);
@@ -51,9 +53,7 @@ int main(int argc, char *argv[])
     }
 
     d->number_of_threads = 1;
-
-    //create empty queue
-    d->queue = queue_empty(NULL);
+    d->exit_code = EXIT_SUCCESS;
 
     // loop to catch j flag.
     while ((flag = getopt(argc, argv, "j:")) != -1)
@@ -93,7 +93,10 @@ int main(int argc, char *argv[])
 
     //add targets to queue.
     for (int i = optind; i < argc ; i++)
-    {      
+    {   
+         //create empty queue
+        d->queue = queue_empty(NULL);
+
         if (sem_init(&semaphore, 0, d->number_of_threads) == -1)
         {
             perror("Semaphore init failed!");
@@ -102,7 +105,7 @@ int main(int argc, char *argv[])
 
         //copy argv to file so each target can  be freed after being dequeued.
         file = strdup(argv[i]);
-        d->queue = queue_enqueue(d->queue, file);
+        queue_enqueue(d->queue, file);
 
         if (d->number_of_threads == 1)
         {
@@ -123,9 +126,9 @@ int main(int argc, char *argv[])
         queue_kill(d->queue);
         sem_destroy(&semaphore);
     }
-
+    int exit_code = d->exit_code;
     free(d);   
-    return EXIT_SUCCESS;
+    return exit_code;
 }
 
 /**
@@ -182,14 +185,23 @@ void dir_check(const char *target_dir, data *d)
     //checks if directory is vaild or not.
     if ((dir = opendir(target_dir)) == NULL)
     {
-        fprintf(stderr, "%s: ", target_dir);
-        perror("Cant open directory!");
+        fprintf(stderr, "du: cannot read directory '%s': Permission denied\n", target_dir);
+        pthread_mutex_lock(&mutex);
+        d->exit_code = EXIT_FAILURE;
+        pthread_mutex_unlock(&mutex);
     }
     else
     {   
         //read all files in directory.
         while ((direntp = readdir(dir)) != NULL)
         {   
+
+            //removes the "." and ".." from the directory.
+            if ((strcmp(direntp->d_name, ".") == 0) || (strcmp(direntp->d_name, "..") == 0))
+            {
+                continue;
+            }
+
             //allocate memory for file_name and add null terminator to the first bit.
             char *file_name = malloc(sizeof(*file_name)*PATH_MAX);
 
@@ -201,12 +213,6 @@ void dir_check(const char *target_dir, data *d)
 
             file_name[0] = '\0';
 
-            //removes the "." and ".." from the directory.
-            if ((strcmp(direntp->d_name, ".") == 0) || (strcmp(direntp->d_name, "..") == 0))
-            {
-                continue;
-            }
-
             //copys directory and file name and adds / to file_name.
             strcat(file_name, target_dir);
             if (file_name[strlen(file_name) -1] != '/')
@@ -216,7 +222,8 @@ void dir_check(const char *target_dir, data *d)
             strcat(file_name, direntp->d_name);
 
             //add target to queue.
-            d->queue = queue_enqueue(d->queue, file_name);
+            
+            queue_enqueue(d->queue, file_name);
 
         }
 

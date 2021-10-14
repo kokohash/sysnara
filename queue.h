@@ -57,7 +57,7 @@ bool queue_is_done(const queue *q, sem_t *semaphore, int number_of_threads);
  *
  * Returns: The modified queue.
  */
-queue *queue_enqueue(queue *q, void *v);
+void queue_enqueue(queue *q, void *v);
 
 /**
  * queue_dequeue() - Remove the element at the front of a queue.
