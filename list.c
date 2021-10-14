@@ -50,6 +50,12 @@ list *list_empty(free_function free_func)
 	// Allocate memory for the list head.
 	list *l = calloc(1, sizeof(list));
 
+	if (l == NULL) 
+	{
+		perror("Failed to allocate");
+		exit(EXIT_FAILURE);
+	}
+
 	// Allocate memory for the border cells.
 	l->top = calloc(1, sizeof(struct cell));
 	l->bottom = calloc(1, sizeof(struct cell));
@@ -172,6 +178,12 @@ list_pos list_insert(list * l, void *v, const list_pos p)
 {
 	// Allocate memory for a new cell.
 	list_pos elem = malloc(sizeof(struct cell));
+
+	if (elem == NULL) 
+	{
+		perror("Failed to allocate");
+		exit(EXIT_FAILURE);
+	}
 
 	// Store the value.
 	elem->value = v;

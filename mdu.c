@@ -1,3 +1,5 @@
+#include <linux/limits.h>
+#include <semaphore.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -9,38 +11,71 @@
 #include <sys/stat.h>
 #include <stdbool.h>
 #include <pthread.h>
+
 #include "list.h"
 #include "queue.h"
 
+//data structure decliration
+typedef struct data
+{   
+    int number_of_threads;
+    queue *queue;
+
+}data;
+
+sem_t semaphore;
+
 //decliration of functions.
 int check_target_size(const char *target_file);
-int dir_check(const char *target_dir);
+void dir_check(const char *target_dir, data *d);
 mode_t check_target_mode(const char *target);
-void* check_target(char *argv[]);
-void thread_func(int num_of_threads);
-
-void print(const void *data);
+void *check_target(void *ptr);
+int thread_maker(data *d);
 
 int main(int argc, char *argv[])
 {
+    //if no arguments(files or directories) are sent.
+    if (argc < 2)
+    {
+        fprintf(stderr, "No files or directories!\n");
+        return EXIT_FAILURE;
+    }
+
     char flag; 
-    bool j_flag = false;
-    int number_of_threads = 0;
+    data *d = malloc(sizeof(*d));
+
+    if (d == NULL) 
+    {
+        perror("Allocation failed!");
+        return EXIT_FAILURE;
+    }
+
+    d->number_of_threads = 1;
+
+    //create empty queue
+    d->queue = queue_empty(NULL);
 
     // loop to catch j flag.
-    while ((flag = getopt(argc, argv, "j")) != -1)
+    while ((flag = getopt(argc, argv, "j:")) != -1)
     {   
         // j flag caught
         if (flag == 'j')
         {   
-            j_flag = true;
+            char* rest;
+
+            errno = 0; 
             //check how many threads to make
-            if (atoi(argv[2]) > 0)
-            {   
-                number_of_threads = atoi(argv[2]);
+            d->number_of_threads = strtol(optarg, &rest, 10);
+
+            //if strtol fails.
+            if (errno != 0)
+            {
+                perror("Strltol failed!");
+                return EXIT_FAILURE;
             }
-            //if no amount is specified 
-            else
+            
+            //if no, or invalid amout of threads is read
+            if (rest[0] != '\0' || d->number_of_threads <= 0)
             {
                 fprintf(stderr, "Invalid amount of threads!\n");
                 return EXIT_FAILURE;
@@ -54,26 +89,43 @@ int main(int argc, char *argv[])
         }
     }
 
-    //if no arguments(files or directories) are sent.
-    if (argc < 2)
-    {
-        fprintf(stderr, "No files or directories!\n");
-        return EXIT_FAILURE;
-    }
-    else
-    {
-        if (!j_flag)
+
+    char *file;
+
+    //add targets to queue.
+    for (int i = optind; i < argc ; i++)
+    {      
+
+
+        if (sem_init(&semaphore, 0, d->number_of_threads) == -1)
+        {
+            perror("Semaphore init failed!");
+            return EXIT_FAILURE;
+        }
+
+        //copy argv to file so each target can  be freed after being dequeued.
+        file = strdup(argv[i]);
+        d->queue = queue_enqueue(d->queue, file);
+
+        if (d->number_of_threads == 1)
         {
             //check if target is a file or directory without threads.
-            check_target(argv);
+            int *size = check_target(d);
+            fprintf(stdout, "%d      ", *size);
+            fprintf(stdout, "%s\n", argv[i]);
         }
         else
         {   
             //check if target is a file or directory with threads.
-            thread_func(number_of_threads);
+            int size = thread_maker(d);
+            fprintf(stdout, "%d      ", size);
+            fprintf(stdout, "%s\n", argv[i]);
         }
+
+        queue_kill(d->queue);
+        sem_destroy(&semaphore);
     }
-            
+       
     return EXIT_SUCCESS;
 }
 
@@ -93,11 +145,8 @@ int check_target_size(const char *target_file)
         perror(target_file);
         exit(EXIT_FAILURE);
     }
-
-    //get the blocksize of the file
-    blkcnt_t size_of_file = file_information.st_blocks;
     
-    return size_of_file;
+    return file_information.st_blocks;
 }
 
 /**
@@ -117,10 +166,7 @@ mode_t check_target_mode(const char *target)
         exit(EXIT_FAILURE);
     }
 
-    //get the mode of the target
-    mode_t mode_of_file = file_information.st_mode;
-
-    return mode_of_file;
+    return file_information.st_mode;
 }
 
 /**
@@ -129,25 +175,33 @@ mode_t check_target_mode(const char *target)
  * @param target_dir directory to check
  * @return size of directory as an int
  */
-int dir_check(const char *target_dir)
+void dir_check(const char *target_dir, data *d)
 {
     DIR *dir;
     struct dirent* direntp;
-    int size = 0;
 
     //checks if directory is vaild or not.
-    if (!(dir = opendir(target_dir)))
+    if ((dir = opendir(target_dir)) == NULL)
     {
+        fprintf(stderr, "%s: ", target_dir);
         perror("Cant open directory!");
-        exit(EXIT_FAILURE);
+        
     }
     else
     {   
         //read all files in directory.
         while ((direntp = readdir(dir)) != NULL)
         {   
-            //allocate memory for file_name and add null terminator to the first bit. 
-            char *file_name = malloc(sizeof(*file_name)*1024);
+            //allocate memory for file_name and add null terminator to the first bit.
+            //ändra till strdup?? och kolla malloc
+            char *file_name = malloc(sizeof(*file_name)*PATH_MAX);
+
+            if (file_name == NULL)
+            {
+                perror("Failed to allocate!");
+                exit(EXIT_FAILURE);
+            }
+
             file_name[0] = '\0';
 
             //removes the "." and ".." from the directory.
@@ -158,104 +212,90 @@ int dir_check(const char *target_dir)
 
             //copys directory and file name and adds / to file_name.
             strcat(file_name, target_dir);
-            strcat(file_name, "/");
+            if (file_name[strlen(file_name) -1] != '/')
+            {
+                strcat(file_name, "/");
+            }
             strcat(file_name, direntp->d_name);
 
-            //checks if file_name is a directory or not.
-            if (S_ISDIR(check_target_mode(file_name)))
-            {          
-                size += dir_check(file_name);
-            }
-            else
-            {   
-                size += check_target_size(file_name);
-            }
+            //add target to queue.
+            d->queue = queue_enqueue(d->queue, file_name);
 
-            free(file_name); 
         }
 
        closedir(dir);
     }
 
+}
+
+void *check_target(void *ptr)
+{   
+    data *d = ptr;
+    int *size = malloc(sizeof(*size));
+    *size = 0;
+    mode_t mode_of_target;
+    char *target;
+
+    //loop to check if the target is a file or a directory.
+    while (!queue_is_done(d->queue, &semaphore, d->number_of_threads))
+    {   
+        //lock 
+        sem_wait(&semaphore);
+
+        //get the target from queue.
+        target = queue_dequeue(d->queue);
+        if(target != NULL) {
+            //check the target mode
+            mode_of_target = check_target_mode(target);
+
+            //if target is a file.
+            if (S_ISREG(mode_of_target) || S_ISLNK(mode_of_target))
+            {
+                *size += check_target_size(target);        
+            }
+
+            //if target is a directory or a symbolic link.
+            if (S_ISDIR(mode_of_target))
+            {
+                dir_check(target, d);
+                *size += check_target_size(target);  
+            }
+            
+            free(target);
+        }
+
+        sem_post(&semaphore);
+    }
     return size;
 }
 
-void* check_target(char *argv[])
+int thread_maker(data *d)
 {
-
-    int i = 1;
+    pthread_t thread[d->number_of_threads];
+    
     int size = 0;
-    mode_t mode_of_target;
+    int *size_catch;
 
-    //loop to check if the target is a file or a directory.
-    while (argv[i] != NULL)
-    {  
-        mode_of_target = check_target_mode(argv[i]);
-
-        //if target is a file.
-        if (S_ISREG(mode_of_target))
+    for (int i = 0; i < d->number_of_threads; i++) 
+    {   
+        if (pthread_create(&thread[i], NULL, *check_target, d) != 0)
         {
-            size = check_target_size(argv[i]);
-            fprintf(stdout, "%d      ", size);
-            fprintf(stdout, "%s\n", argv[i]);
-            i++;
-        }
-        //if target is a directory.
-        if (S_ISDIR(mode_of_target))
-        {
-            size += dir_check(argv[i]);
-            fprintf(stdout, "%d      ", size);
-            fprintf(stdout, "%s\n", argv[i]);
-            i++;
-        }
-    }
-}
-
-void thread_func(int num_of_threads)
-{   
-    printf("%d\n", num_of_threads);
-
-    //create empty queue
-    queue *q = queue_empty(NULL);
-
-    //check if queue was successfully created
-    if (!queue_is_empty(q))
-    {
-        fprintf(stderr, "Empty queue creation failed!");
-        exit(EXIT_FAILURE);
-    }   
-
-    pthread_t thread[num_of_threads]; 
-
-    //create threads
-    for (int i = 0; i < num_of_threads; i++)
-    {
-        if (pthread_create(&thread[i], NULL, &check_target, NULL) != 0)
-        {
-            perror("Failed to create thread");
+            perror("Thread create failed!");
             exit(EXIT_FAILURE);
         }
     }
 
-    //join threads
-    for (int i = 0; i < num_of_threads; i++)
+    for (int i = 0; i < d->number_of_threads; i++) 
     {
-        if (pthread_join(thread[i], NULL) != 0)
+        if (pthread_join(thread[i], (void **)&size_catch) != 0)
         {
-            perror("Failed to join thread");
+            perror("Thread join failed!");
             exit(EXIT_FAILURE);
         }
+
+        size += *size_catch;
+        free(size_catch);
     }
-    
 
-    
-
-
-
-    
-}
-
-void print(const void *data)
-{
-    printf("[%d]", *(int*)data);
+    return size;
 }

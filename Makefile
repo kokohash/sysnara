@@ -1,7 +1,7 @@
 all : mdu
 
 mdu : mdu.o queue.o list.o
-	gcc -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition -o mdu mdu.o queue.o list.o
+	gcc -pthread -o mdu mdu.o queue.o list.o
 
 mdu.o : mdu.c
 	gcc -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition -c mdu.c
@@ -13,4 +13,4 @@ list.o : list.c
 	gcc -g -std=gnu11 -Werror -Wall -c list.c list.h util.h
 
 clean : 
-	rm -rf *.o 
+	rm -rf *.o mdu
