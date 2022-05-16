@@ -1,0 +1,11 @@
+mmake : mmake.o parser.o
+	gcc -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition -o mmake mmake.o parser.o
+
+mmake.o : mmake.c parser.h
+	gcc -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition -c mmake.c
+
+parser.o : parser.c
+	gcc -g -std=gnu11 -Werror -Wall -Wextra -Wpedantic -Wmissing-declarations -Wmissing-prototypes -Wold-style-definition -c parser.c
+
+clean : 
+	rm -rf mmake.o parser.o  
